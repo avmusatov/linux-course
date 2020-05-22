@@ -15,5 +15,5 @@ The program is implementation of simple **daemon**, which doing something when h
 ## TO DO
 
 * ~~implement execution of several commands from single file~~
-* every command running in own fork-exec parallel
-* fix zombie processes
+* ~~every command running in own fork-exec parallel~~
+* ~~fix zombie processes~~

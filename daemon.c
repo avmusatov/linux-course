@@ -134,19 +134,23 @@ int Daemon(char *filePath)
 						else
 						{
 							char logMsg[100] = "Command is executed:";
-							strcat(logMsg,newArgv[0]);
+							strcat(logMsg, newArgv[0]);
 							WriteLog(logMsg, 21 + strlen(newArgv[0]));
 							ExecuteCommand(newArgv);
 						}
 					}
 					else if (pid > 0)
 					{
-						pause();
-						while (!sigChild)
+						while (1)
 						{
-							sem_post(&sem);
-							sigChild = false;
-							break;
+							if (sigChild)
+							{
+								waitpid(-1, NULL, 0);
+								sem_post(&sem);
+								sigChild = false;
+								break;
+							}
+							pause();
 						}
 					}
 					else
