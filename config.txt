@@ -1,1 +1,3 @@
-/bin/ls ..
+/bin/ls //
+/bin/cat --help
+/bin/ls
