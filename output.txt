@@ -1,0 +1,60 @@
+bin
+boot
+cdrom
+dev
+etc
+home
+initrd.img
+initrd.img.old
+lib
+lib64
+lost+found
+media
+mnt
+opt
+proc
+root
+run
+sbin
+snap
+srv
+swapfile
+sys
+tmp
+usr
+var
+vmlinuz
+vmlinuz.old
+Использование: /bin/cat [КЛЮЧ]… [ФАЙЛ]…
+Печатает слияние ФАЙЛ(ов) на стандартный вывод.
+
+Если ФАЙЛ не задан или задан как -, читает стандартный ввод.
+
+  -A, --show-all           синоним -vET
+  -b, --number-nonblank    нумеровать непустые строки при выводе
+  -e                       подавляет -n, синоним -vE
+  -E, --show-ends          показывать $ в конце каждой строки
+  -n, --number             нумеровать все строки при выводе
+  -s, --squeeze-blank      выводить не более одной пустой строки при повторе
+  -t                       синоним -vT
+  -T, --show-tabs          показывать символы табуляции как ^I
+  -u                       (игнорируется)
+  -v, --show-nonprinting   использовать запись с ^ и M-, за исключением
+                           символов перевода строки и табуляции
+      --help     показать эту справку и выйти
+      --version  показать информацию о версии и выйти
+
+Примеры:
+  /bin/cat f - g  Выводит содержимое f, потом стандартный ввод, потом g.
+  /bin/cat        Копирует стандартный ввод на стандартный вывод.
+
+Оперативная справка GNU coreutils: <http://www.gnu.org/software/coreutils/>
+Об ошибках в переводе сообщений «cat» сообщайте по адресу <gnu@mx.ru>
+Полная документация: <http://www.gnu.org/software/coreutils/cat>
+или доступная локально: info '(coreutils) cat invocation'
+config.txt
+daemon
+daemon.c
+log.txt
+output.txt
+README.md

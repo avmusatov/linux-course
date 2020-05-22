@@ -11,11 +11,12 @@
 #include <semaphore.h>
 #include <pthread.h>
 
-#define SEM_NAME "/semname"
+sem_t sem;
 
 bool sigUsr1Come = false;
 bool sigTermCome = false;
 bool sigUsr2Come = false;
+bool sigChild = false;
 
 void SigUsr1Handler(int signum)
 {
@@ -30,6 +31,11 @@ void SigUsr2Handler(int signum)
 void SigTermHandler(int signum)
 {
 	sigTermCome = true;
+}
+
+void SigChildHandler(int signum)
+{
+	sigChild = true;
 }
 
 void WriteLog(char *msg, int size)
@@ -54,21 +60,7 @@ int ExecuteCommand(char **newArgv)
 	dup2(output, STDOUT_FILENO);
 	close(output);
 
-	int pid = fork();
-	int status;
-	switch (pid)
-	{
-	case -1:
-		WriteLog("An error is occurred when fork() run!", 38);
-		return -1;
-	case 0:
-		execve(newArgv[0], newArgv, __environ);
-	default:
-	{
-		waitpid(pid, &status, 0);
-	}
-	}
-	return WEXITSTATUS(status);
+	execv(newArgv[0], newArgv);
 }
 
 int Daemon(char *filePath)
@@ -76,16 +68,9 @@ int Daemon(char *filePath)
 	signal(SIGUSR1, SigUsr1Handler);
 	signal(SIGUSR2, SigUsr2Handler);
 	signal(SIGTERM, SigTermHandler);
+	signal(SIGCHLD, SigChildHandler);
 
-	// sem_t *sem;
-
-	// if ((sem = sem_open(SEM_NAME, O_CREAT, 0777, 0)) == SEM_FAILED)
-	// {
-	// 	WriteLog("An error is occured while opening semaphore", 44);
-	// 	exit(EXIT_FAILURE);
-	// }
-
-	// sem_init(sem, 1, 0);
+	sem_init(&sem, 0, 1);
 
 	int cnt, status;
 	int configDescriptor = open(filePath, O_RDWR, S_IRWXU);
@@ -105,103 +90,68 @@ int Daemon(char *filePath)
 		{
 			WriteLog("SIGUSR2 come", 13);
 
-			// while ((cnt = read(configDescriptor, commandLine, sizeof(commandLine))) > 0)
-			// {
-			// 	int ppid = fork();
-
-			// 	if (ppid == -1)
-			// 	{
-			// 		WriteLog("An error is occurred when fork() run!", 38);
-			// 		exit(EXIT_FAILURE);
-			// 	}
-			// 	else if (ppid == 0)
-			// 	{
-			// 		int newArgc = 0;
-			// 		char *newArgv[10];
-			// 		char *arg;
-
-			// 		//parsing of the line
-			// 		arg = strtok(commandLine, " ");
-			// 		newArgv[newArgc++] = arg;
-
-			// 		while (arg != NULL)
-			// 		{
-			// 			arg = strtok(NULL, " ");
-			// 			newArgv[newArgc++] = arg;
-			// 		}
-
-			// 		newArgv[newArgc] = NULL;
-
-			// 		dup2(outputDescriptor, STDOUT_FILENO);
-			// 		close(outputDescriptor);
-
-			// 		int pid = fork();
-			// 		if (pid == -1)
-			// 		{
-			// 			WriteLog("An error is occurred when fork() run!", 38);
-			// 			exit(EXIT_FAILURE);
-			// 		}
-			// 		else if (pid == 0)
-			// 		{
-			// 			sem_wait(sem);
-			// 			execve(newArgv[0], newArgv, NULL);
-			// 		}
-
-			// 		//wait(&status);
-
-			// 		if (status == 0)
-			// 		{
-			// 			WriteLog("0", 1);
-			// 		}
-			// 		else
-			// 		{
-			// 			WriteLog("1", 1);
-			// 		}
-
-			// 		sem_post(sem);
-			// 		sem_close(sem);
-			// 	}
-			//}
-
 			cnt = read(configDescriptor, allLines, sizeof(allLines));
+			close(configDescriptor);
 			if (cnt > 0)
 			{
 				char *tokens[10];
-				int i = 0;
+				int commandsCnt = 0;
 				char *commandLine;
+
 				commandLine = strtok(allLines, "\n");
 				while (commandLine != NULL)
 				{
-					tokens[i++] = commandLine;
+					tokens[commandsCnt++] = commandLine;
 					commandLine = strtok(NULL, "\n");
 				}
 
-				for (int k = 0; k < i; k++)
+				for (int k = 0; k < commandsCnt; k++)
 				{
-					char *newArgv[10];
-					int newArgc = 0;
-					char *arg;
-
-					arg = strtok(tokens[k], " ");
-					newArgv[newArgc++] = arg;
-
-					while (arg != NULL)
+					pid_t pid;
+					if ((pid = fork()) == 0)
 					{
-						//printf("[%s]\n", arg);
-						arg = strtok(NULL, " ");
+						char *newArgv[10];
+						int newArgc = 0;
+						char *arg;
+
+						arg = strtok(tokens[k], " ");
 						newArgv[newArgc++] = arg;
+
+						while (arg != NULL)
+						{
+							arg = strtok(NULL, " ");
+							newArgv[newArgc++] = arg;
+						}
+
+						newArgv[newArgc] = NULL;
+
+						int wait = sem_wait(&sem);
+
+						if (wait == -1)
+						{
+							WriteLog("Error while sem_wait operation!", 32);
+						}
+						else
+						{
+							char logMsg[100] = "Command is executed:";
+							strcat(logMsg,newArgv[0]);
+							WriteLog(logMsg, 21 + strlen(newArgv[0]));
+							ExecuteCommand(newArgv);
+						}
 					}
-
-					newArgv[newArgc] = NULL;
-
-					int st = ExecuteCommand(newArgv);
-					if (st == 0)
+					else if (pid > 0)
 					{
-						WriteLog("Success", 8);
+						pause();
+						while (!sigChild)
+						{
+							sem_post(&sem);
+							sigChild = false;
+							break;
+						}
 					}
 					else
 					{
-						WriteLog("Failed", 7);
+						WriteLog("Error while fork()!", 20);
 					}
 				}
 			}
@@ -210,8 +160,7 @@ int Daemon(char *filePath)
 		pause();
 	}
 
-	close(configDescriptor);
-	//sem_unlink(SEM_NAME);
+	sem_destroy(&sem);
 
 	WriteLog("finished!", 10);
 	exit(EXIT_SUCCESS);
